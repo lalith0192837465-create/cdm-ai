@@ -9,7 +9,8 @@ import { validateDealInput } from "@/lib/validate";
 // Body can include corrected fields if the AI got something wrong.
 // This is the ONLY place a CallReview turns into a real Deal — nothing
 // downstream (Stripe, Eng notifications) fires before this happens.
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
@@ -18,7 +19,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: "Only sales can confirm deals" }, { status: 403 });
   }
 
-  const review = await db.callReview.findUnique({ where: { id: params.id } });
+  const review = await db.callReview.findUnique({ where: { id } });
   if (!review) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (review.requestedByEmail !== session.user?.email) {
     return NextResponse.json({ error: "Not your call review" }, { status: 403 });

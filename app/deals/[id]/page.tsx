@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 // This page IS the auto-generated output described in the plan: once every
 // team has signed off, this renders a clean summary a sales rep can send
 // straight to the customer — no manual copy-pasting terms from Slack threads.
-export default async function DealSummary({ params }: { params: { id: string } }) {
-  const deal = await db.deal.findUnique({ where: { id: params.id } });
+export default async function DealSummary({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const deal = await db.deal.findUnique({ where: { id } });
   if (!deal) notFound();
 
   return (

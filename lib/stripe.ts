@@ -24,7 +24,10 @@ export async function draftInvoiceForDeal(deal: {
 
   // Look up an existing customer by name (Read permission) rather than
   // creating one, since this key can't write customers — only invoices.
-  const customers = await stripe.customers.search({ query: `name~"${deal.customerName.replace(/"/g, '\\"')}"`, limit: 1 });
+  // Escape backslashes FIRST, then quotes — doing it in the other order
+  // would double-escape and still leave a way to break out of the query.
+  const escapedName = deal.customerName.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const customers = await stripe.customers.search({ query: `name~"${escapedName}"`, limit: 1 });
   if (customers.data.length === 0) {
     console.log(`[stripe] No existing Stripe customer found for "${deal.customerName}" — skipping draft. Create the customer in Stripe first.`);
     return null;

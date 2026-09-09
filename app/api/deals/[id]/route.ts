@@ -6,7 +6,8 @@ import { notifySlack, statusUpdateMessage, finalizedMessage } from "@/lib/notify
 import { draftInvoiceForDeal } from "@/lib/stripe";
 import { FIELD_OWNER } from "@/config/roles";
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
@@ -26,7 +27,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
 
   const deal = await db.deal.update({
-    where: { id: params.id },
+    where: { id },
     data: { [body.field]: body.value },
   });
 
@@ -47,7 +48,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   if (allApproved && !deal.finalizedAt) {
     const finalized = await db.deal.update({
-      where: { id: params.id },
+      where: { id },
       data: { finalizedAt: new Date() },
     });
     await notifySlack(finalizedMessage(finalized.customerName));
@@ -58,8 +59,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 }
 
 // GET /api/deals/:id -> single deal detail, used by the summary doc page
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const deal = await db.deal.findUnique({ where: { id: params.id } });
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const deal = await db.deal.findUnique({ where: { id } });
   if (!deal) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(deal);
 }
