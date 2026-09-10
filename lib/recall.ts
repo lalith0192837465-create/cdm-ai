@@ -45,23 +45,27 @@ export async function getTranscriptText(botId: string): Promise<string> {
   const transcriptUrl = recording?.media_shortcuts?.transcript?.data?.download_url;
   if (!transcriptUrl) return "";
 
-  // Security check: only fetch this URL if it's actually pointing at a domain
-  // we trust (Recall.ai's own API or their storage backend). Without this,
-  // a tampered/unexpected URL could make our server fetch something it
-  // shouldn't (a "server-side request forgery" attack).
-  const ALLOWED_HOSTS = ["recall.ai", "recallai-production-bot-data.s3.amazonaws.com"];
   let parsed: URL;
   try {
     parsed = new URL(transcriptUrl);
   } catch {
     throw new Error("Transcript URL from Recall.ai was not a valid URL.");
   }
-  const isTrusted = parsed.protocol === "https:" && ALLOWED_HOSTS.some(host => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`));
+
+  // Direct, inline checks only — no array/callback indirection — so static
+  // analysis can trace that this value is validated before use.
+  const isTrusted =
+    parsed.protocol === "https:" &&
+    (parsed.hostname === "recall.ai" ||
+      parsed.hostname.endsWith(".recall.ai") ||
+      parsed.hostname === "recallai-production-bot-data.s3.amazonaws.com");
+
   if (!isTrusted) {
     throw new Error(`Refusing to fetch transcript from untrusted host: ${parsed.hostname}`);
   }
 
-  const res = await fetch(transcriptUrl);
+  // Fetch the validated URL object itself, not the original raw string.
+  const res = await fetch(parsed);
   const data = await res.json();
 
   // Transcript format is a list of speaker segments with word arrays.
@@ -69,3 +73,4 @@ export async function getTranscriptText(botId: string): Promise<string> {
     .map((seg: any) => `${seg.participant?.name || "Unknown"}: ${(seg.words || []).map((w: any) => w.text).join(" ")}`)
     .join("\n");
 }
+    
