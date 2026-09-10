@@ -7,6 +7,14 @@ function authHeader() {
   return { Authorization: `Token ${process.env.RECALL_API_KEY}` };
 }
 
+function sanitizeBotId(botId: string): string {
+  // Keep bot IDs to a safe character set so untrusted input cannot alter URL paths.
+  if (!/^[A-Za-z0-9_-]+$/.test(botId)) {
+    throw new Error("Invalid bot ID format.");
+  }
+  return botId;
+}
+
 // Sends a bot into the given Zoom meeting URL. Uses "meeting_captions" as the
 // transcript provider — that's Zoom's own built-in captions, which Recall.ai
 // doesn't charge extra for (vs. their own higher-accuracy transcription at
@@ -32,7 +40,8 @@ export async function startBot(meetingUrl: string) {
 
 // Fetches the bot's data once it's done, including where to get the transcript.
 export async function getBot(botId: string) {
-  const res = await fetch(`${BASE}/bot/${botId}/`, { headers: authHeader() });
+  const safeBotId = encodeURIComponent(sanitizeBotId(botId));
+  const res = await fetch(`${BASE}/bot/${safeBotId}/`, { headers: authHeader() });
   if (!res.ok) throw new Error(`Recall.ai get bot failed: ${await res.text()}`);
   return res.json();
 }
