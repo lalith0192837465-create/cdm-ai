@@ -49,7 +49,7 @@ export async function getTranscriptText(botId: string): Promise<string> {
   // we trust (Recall.ai's own API or their storage backend). Without this,
   // a tampered/unexpected URL could make our server fetch something it
   // shouldn't (a "server-side request forgery" attack).
-  const ALLOWED_HOSTS = ["recall.ai", "amazonaws.com"];
+  const ALLOWED_HOSTS = ["recall.ai", "recallai-production-bot-data.s3.amazonaws.com"];
   let parsed: URL;
   try {
     parsed = new URL(transcriptUrl);
