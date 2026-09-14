@@ -1,7 +1,19 @@
-export { default } from "next-auth/middleware";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-// Public pages (/, /demo, /onboarding, /run-local, /signin) stay open for
-// demos and onboarding. Only the actual workspace and protected APIs require login.
+// Public landing/demo/setup pages must never invoke the auth middleware.
+// Only the workspace and protected API routes below require a signed-in user.
+export async function middleware(request: NextRequest) {
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  if (!token) {
+    const signIn = new URL("/signin", request.url);
+    signIn.searchParams.set("callbackUrl", request.nextUrl.pathname);
+    return NextResponse.redirect(signIn);
+  }
+  return NextResponse.next();
+}
+
 export const config = {
   matcher: [
     "/dashboard/:path*",
@@ -14,5 +26,3 @@ export const config = {
     "/api/calls/:id/confirm",
   ],
 };
-
-// Production redeploy marker.
