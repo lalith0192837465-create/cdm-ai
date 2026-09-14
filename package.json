@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "setup": "npx prisma generate && npx prisma db push"
   },
   "dependencies": {
     "next": "^15.5.21",
