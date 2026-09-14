@@ -1,85 +1,9 @@
 "use client";
-// This page is entirely self-contained mock data — it never touches the real
-// database or API. Purpose: let someone click "Try Demo" and see the product
-// working immediately, with zero setup and zero risk of polluting real data.
-
-const mockDeals = [
-  {
-    id: "demo-1",
-    customerName: "Northwind Bank",
-    salesRep: "Chizu A.",
-    discountPct: 15,
-    trialDays: 30,
-    customFeature: "Custom SSO integration for their auth team",
-    engStatus: "scoped",
-    financeStatus: "invoiced",
-    legalStatus: "pending",
-  },
-  {
-    id: "demo-2",
-    customerName: "Vale Logistics",
-    salesRep: "Chizu A.",
-    discountPct: 10,
-    trialDays: 14,
-    customFeature: null,
-    engStatus: "pending",
-    financeStatus: "pending",
-    legalStatus: "pending",
-  },
-  {
-    id: "demo-3",
-    customerName: "Harborline Retail",
-    salesRep: "Marcus T.",
-    discountPct: 20,
-    trialDays: 45,
-    customFeature: "Bulk CSV export for their finance team",
-    engStatus: "scoped",
-    financeStatus: "invoiced",
-    legalStatus: "approved",
-  },
+import Link from "next/link";
+const deals=[
+ {id:"demo-1",customer:"Northwind Bank",initials:"NB",rep:"Chizu A.",discount:15,trial:30,feature:"Custom SSO integration",statuses:[["Engineering","Scoped","green"],["Finance","Invoiced","green"],["Legal","Review","amber"]],score:72},
+ {id:"demo-2",customer:"Vale Logistics",initials:"VL",rep:"Chizu A.",discount:10,trial:14,feature:"—",statuses:[["Engineering","Pending","muted"],["Finance","Pending","muted"],["Legal","Pending","muted"]],score:34},
+ {id:"demo-3",customer:"Harborline Retail",initials:"HR",rep:"Marcus T.",discount:20,trial:45,feature:"Bulk CSV export",statuses:[["Engineering","Scoped","green"],["Finance","Invoiced","green"],["Legal","Approved","green"]],score:100},
 ];
-
-const statusColor: Record<string, string> = {
-  pending: "#8b8f9a", scoped: "#4ade80", invoiced: "#4ade80", approved: "#4ade80", blocked: "#f87171",
-};
-
-function StatusPill({ label, value }: { label: string; value: string }) {
-  return (
-    <span style={{
-      fontSize: 12, padding: "3px 8px", borderRadius: 999,
-      background: "#1a1d24", color: statusColor[value] || "#e7e9ee",
-      border: `1px solid ${statusColor[value] || "#333"}`, marginRight: 6,
-    }}>
-      {label}: {value}
-    </span>
-  );
-}
-
-export default function Demo() {
-  return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 20px" }}>
-      <div style={{ background: "#1a1d24", border: "1px solid #4ade80", borderRadius: 8, padding: "10px 14px", marginBottom: 20, fontSize: 13 }}>
-        👋 You're viewing sample data — nothing here is real or saved. <a href="/" style={{ color: "#4ade80" }}>Go to the real dashboard →</a>
-      </div>
-
-      <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 24 }}>DealFlow — demo</h1>
-
-      <div style={{ display: "grid", gap: 12 }}>
-        {mockDeals.map(d => (
-          <div key={d.id} style={{ background: "#141720", borderRadius: 10, padding: 16, border: "1px solid #23262f" }}>
-            <div style={{ fontWeight: 600 }}>{d.customerName}</div>
-            <div style={{ fontSize: 13, color: "#8b8f9a" }}>
-              {d.salesRep} · {d.discountPct}% discount · {d.trialDays}-day trial
-            </div>
-            {d.customFeature && <div style={{ fontSize: 13, color: "#8b8f9a", marginTop: 2 }}>{d.customFeature}</div>}
-            <div style={{ marginTop: 12 }}>
-              <StatusPill label="Eng" value={d.engStatus} />
-              <StatusPill label="Finance" value={d.financeStatus} />
-              <StatusPill label="Legal" value={d.legalStatus} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </main>
-  );
-}
+function Pill({name,value,tone}:{name:string,value:string,tone:string}){return <span className={`demo-pill ${tone}`}><i></i>{name}<b>{value}</b></span>}
+export default function Demo(){return <main className="demo-page"><header className="demo-top"><Link href="/" className="demo-brand"><span>C</span> CDM</Link><div className="demo-nav"><span className="live-dot"><i></i> Live demo</span><Link href="/onboarding">Set up CDM</Link></div></header><section className="demo-hero"><div><div className="demo-kicker">DEAL OPERATIONS / OVERVIEW</div><h1>Good deals move<br/><em>without the chase.</em></h1><p>See how CDM turns a closed-won conversation into coordinated work across your internal teams.</p></div><div className="demo-user"><div className="avatar">CA</div><span><b>Chizu A.</b><small>Sales · Demo workspace</small></span><span className="chevron">⌄</span></div></section><div className="sample-banner"><span className="spark">✦</span><div><b>You're exploring sample data</b><small>Nothing here is saved or connected to a real account.</small></div><Link href="/">Back to CDM <span>→</span></Link></div><section className="demo-stats"><div><small>ACTIVE DEALS</small><strong>03</strong><span className="stat-up">↑ 12% <i>this month</i></span></div><div><small>AVG. RESPONSE TIME</small><strong>2.4<span>h</span></strong><span className="stat-up">↓ 38% <i>vs. email</i></span></div><div><small>TEAMS IN SYNC</small><strong>03<span>/03</span></strong><span className="stat-neutral">Engineering · Finance · Legal</span></div><div className="listening"><span className="wave">◉</span><div><small>CALL LISTENING</small><b>Ready to listen</b><span>Recall.ai connected</span></div><span className="status-live">LIVE</span></div></section><section className="deal-section"><div className="section-heading"><div><div className="demo-kicker">WORKSPACE</div><h2>Active deals <span>03</span></h2></div><button className="filter">All deals <span>⌄</span></button></div><div className="deal-grid">{deals.map(d=><article className="deal-card" key={d.id}><div className="card-top"><div className="company"><div className="company-icon">{d.initials}</div><div><h3>{d.customer}</h3><small>Closed-won · {d.rep}</small></div></div><button className="dots">•••</button></div><div className="term-grid"><div><small>DISCOUNT</small><b>{d.discount}%</b></div><div><small>TRIAL</small><b>{d.trial}<span> days</span></b></div><div><small>CUSTOM TERM</small><b className="term">{d.feature}</b></div></div><div className="card-divider"></div><div className="card-status-head"><small>TEAM STATUS</small><span>{d.score===100?"All clear":"Needs attention"}</span></div><div className="pills">{d.statuses.map(([n,v,t])=><Pill key={n} name={n} value={v} tone={t}/>)}</div><button className="review-button">View deal details <span>↗</span></button></article>)}</div></section><footer className="demo-footer"><span>CDM demo workspace</span><span>AI reads the call. A person approves the action.</span></footer></main>}
