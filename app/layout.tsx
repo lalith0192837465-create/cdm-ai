@@ -1,4 +1,5 @@
-export const metadata = { title: "DealFlow" };
+import "./globals.css";
+export const metadata = { title: "CDM — Deal coordination without the handoff", description: "Turn closed-won sales conversations into coordinated action." };
 import Providers from "./providers";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
