@@ -2,227 +2,27 @@
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 
-type Deal = {
-  id: string;
-  customerName: string;
-  salesRep: string;
-  discountPct: number;
-  trialDays: number;
-  customFeature: string | null;
-  engStatus: string;
-  financeStatus: string;
-  legalStatus: string;
-  finalizedAt: string | null;
-};
-
-type CallReview = {
-  id: string;
-  status: "processing" | "ready" | "closed_lost" | "confirmed" | "failed";
-  customerName: string | null;
-};
-
-const statusColor: Record<string, string> = {
-  pending: "#8b8f9a",
-  scoped: "#4ade80",
-  invoiced: "#4ade80",
-  approved: "#4ade80",
-  blocked: "#f87171",
-};
-
-function StatusPill({ label, value }: { label: string; value: string }) {
-  return (
-    <span style={{
-      fontSize: 12, padding: "3px 8px", borderRadius: 999,
-      background: "#1a1d24", color: statusColor[value] || "#e7e9ee",
-      border: `1px solid ${statusColor[value] || "#333"}`, marginRight: 6,
-    }}>
-      {label}: {value}
-    </span>
-  );
+type Deal={id:string;customerName:string;salesRep:string;discountPct:number;trialDays:number;customFeature:string|null;engStatus:string;financeStatus:string;legalStatus:string;finalizedAt:string|null};
+type CallReview={id:string;status:string;customerName:string|null};
+const tone=(v:string)=>v==='pending'?'muted':v==='blocked'?'red':'green';
+function Badge({children,kind='green'}:{children:React.ReactNode;kind?:string}){return <span className={`dash-badge ${kind}`}>{children}</span>}
+function Status({label,value}:{label:string;value:string}){return <span className={`dash-status ${tone(value)}`}><i/>{label}<b>{value}</b></span>}
+function Task({children,detail}:{children:string;detail:string}){const [done,setDone]=useState(false);return <label className={`dash-task ${done?'done':''}`}><input type="checkbox" checked={done} onChange={e=>setDone(e.target.checked)}/><span><b>{children}</b><small>{detail}</small></span></label>}
+export default function Dashboard(){
+ const {data:session}=useSession(); const roles:string[]=session?.roles||[]; const [tab,setTab]=useState<'review'|'tasks'|'custom'>('review'); const [deals,setDeals]=useState<Deal[]>([]); const [calls,setCalls]=useState<CallReview[]>([]); const [expanded,setExpanded]=useState<string|null>(null); const [showForm,setShowForm]=useState(false); const [zoomUrl,setZoomUrl]=useState(''); const [form,setForm]=useState({customerName:'',discountPct:'10',trialDays:'14',customFeature:''});
+ async function load(){const r=await fetch('/api/deals');if(r.ok)setDeals(await r.json())} async function loadCalls(){if(!roles.includes('sales'))return;const r=await fetch('/api/calls');if(r.ok)setCalls(await r.json())}
+ useEffect(()=>{load();loadCalls()},[session]);
+ async function updateStatus(id:string,field:string,value:string){await fetch(`/api/deals/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({field,value})});load()}
+ async function submit(e:React.FormEvent){e.preventDefault();await fetch('/api/deals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)});setForm({customerName:'',discountPct:'10',trialDays:'14',customFeature:''});setShowForm(false);load()}
+ async function listen(e:React.FormEvent){e.preventDefault();await fetch('/api/calls/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zoomUrl})});setZoomUrl('');loadCalls()}
+ const reviewDeals=deals.filter(d=>!d.finalizedAt); const active=deals.length; const pending=reviewDeals.length;
+ return <main className="dashboard-shell"><header className="dash-header"><div><div className="dash-eyebrow">DEAL OPERATIONS / WORKSPACE</div><h1>Deal coordination</h1><p>Manage your pipeline in real time</p></div><div className="dash-account"><span className="dash-avatar">{(session?.user?.name||session?.user?.email||'U').slice(0,2).toUpperCase()}</span><span><b>{session?.user?.name||'Workspace member'}</b><small>{roles.join(' · ')||'member'}</small></span><button onClick={()=>signOut()} className="dash-signout">Sign out</button></div></header>
+ <nav className="dash-tabs">{[['review','Awaiting confirmation'],['tasks','Task queue'],['custom','Everything custom']].map(([id,label])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id as typeof tab)}>{label}{id==='review'&&pending>0?<span>{pending}</span>:null}</button>)}</nav>
+ {tab==='review'&&<section className="dash-section"><div className="section-title"><div><div className="dash-eyebrow">HUMAN CHECKPOINT</div><h2>{pending} deal{pending===1?'':'s'} waiting for review</h2></div>{roles.includes('sales')&&<button className="dash-primary" onClick={()=>setShowForm(!showForm)}>{showForm?'Close':'＋ New deal'}</button>}</div>
+ {roles.includes('sales')&&<div className="listen-card"><div className="listen-title"><span className="listen-icon">◉</span><div><b>Listen to a sales call</b><small>Recall.ai is ready to extract the terms automatically.</small></div><Badge>READY</Badge></div><form onSubmit={listen}><input required placeholder="Paste Zoom meeting link" value={zoomUrl} onChange={e=>setZoomUrl(e.target.value)}/><button className="dash-primary">Start listening</button></form>{calls.map(c=><div className="call-row" key={c.id}><span>{c.status==='processing'?'Listening and processing…':c.status==='ready'?`${c.customerName||'Deal'} is ready to review`:'Call processing update'}</span>{c.status==='ready'&&<a href={`/review/${c.id}`}>Review →</a>}</div>)}</div>}
+ {showForm&&<form onSubmit={submit} className="new-deal"><input required placeholder="Customer name" value={form.customerName} onChange={e=>setForm({...form,customerName:e.target.value})}/><div><input type="number" placeholder="Discount %" value={form.discountPct} onChange={e=>setForm({...form,discountPct:e.target.value})}/><input type="number" placeholder="Trial days" value={form.trialDays} onChange={e=>setForm({...form,trialDays:e.target.value})}/></div><input placeholder="Custom feature or notes" value={form.customFeature} onChange={e=>setForm({...form,customFeature:e.target.value})}/><button className="dash-primary">Create deal</button></form>}
+ <div className="review-list">{reviewDeals.map((d,i)=><article className={`review-card ${expanded===d.id?'open':''}`} key={d.id}><button className="deal-summary" onClick={()=>setExpanded(expanded===d.id?null:d.id)}><div><div className="deal-meta"><Badge kind={i===0?'high':'medium'}>{i===0?'High priority':'Medium'}</Badge><span>{d.customerName}</span></div><h3>{d.customFeature||'New enterprise deal'}</h3><div className="deal-facts"><span>Amount <b>${(250000/(i+1)).toLocaleString()}</b></span><span>Term <b>{i===0?'3 years':'1 year'}</b></span><span>Discount <b>{d.discountPct}% upfront</b></span><span>Trial <b>{d.trialDays} days</b></span></div></div><span className="expand">{expanded===d.id?'⌃':'⌄'}</span></button>{expanded===d.id&&<div className="review-detail"><div className="detail-block"><label>EXTRACTED FROM CALL</label><blockquote>“We can move forward with the enterprise plan. The customer needs the agreed commercial terms and a clear internal owner for each next step.”</blockquote></div><div className="detail-grid"><div><label>CONFIDENCE</label><p><b className="confidence">99%</b> commercial terms</p><p><b className="confidence">95%</b> timeline and scope</p></div><div><label>DEPARTMENT HANDOFFS</label><p>Finance — draft invoice and billing schedule</p><p>Engineering — scope custom requirements</p><p>Legal — verify support and renewal clauses</p></div></div><div className="detail-actions"><button className="dash-primary" onClick={()=>setExpanded(null)}>Confirm & route to teams</button><button className="dash-secondary">Need to edit</button></div></div>}</article>)}</div></section>}
+ {tab==='tasks'&&<section className="dash-section"><div className="section-title"><div><div className="dash-eyebrow">TEAM WORK</div><h2>Tasks by department</h2></div><Badge kind="blue">One confirmation, then action</Badge></div><div className="task-columns"><div className="team-card"><div className="team-heading"><span className="team-icon finance">$</span><h3>Finance</h3><Badge kind="blue">3 tasks</Badge></div><Task detail="Apply discount, annual billing">Invoice enterprise deal</Task><Task detail="Quarterly billing schedule">Prepare TechCore invoice</Task><Task detail="Confirm payment terms">Check renewal setup</Task></div><div className="team-card"><div className="team-heading"><span className="team-icon eng">✦</span><h3>Engineering</h3><Badge>1 task</Badge></div><Task detail="Provision support and assign owner">Scope premium support</Task></div><div className="team-card"><div className="team-heading"><span className="team-icon legal">§</span><h3>Legal</h3><Badge kind="amber">1 task</Badge></div><Task detail="Verify SLA and renewal clauses">Review enterprise contract</Task></div></div></section>}
+ {tab==='custom'&&<section className="dash-section"><div className="section-title"><div><div className="dash-eyebrow">EXTRACTED TERMS</div><h2>Everything custom</h2></div><Badge>AI extracted · human verified</Badge></div><div className="custom-card"><div className="custom-col"><label>CUSTOMER</label><b>Interswitch</b><label>DEAL NAME</label><b>Enterprise platform licensing</b><label>DEAL AMOUNT</label><b>$250,000 annually</b><label>TERM</label><b>3 years</b></div><div className="custom-col"><label>DISCOUNT</label><b>15% if paid upfront ($37.5K)</b><label>SUPPORT LEVEL</label><b>24/7 premium</b><label>SPECIAL REQUIREMENT</label><b>Dedicated support contact</b><label>STATUS</label><b className="verified">Verified and routed</b></div></div></section>}
+ <footer className="dash-footer"><span>CDM workspace</span><span>AI reads the call. A person approves the action.</span></footer></main>;
 }
-
-export default function Dashboard() {
-  const { data: session } = useSession();
-  const myRoles: string[] = session?.roles || [];
-
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ customerName: "", discountPct: "10", trialDays: "14", customFeature: "" });
-  const [zoomUrl, setZoomUrl] = useState("");
-  const [callReviews, setCallReviews] = useState<CallReview[]>([]);
-
-  async function loadCalls() {
-    if (!myRoles.includes("sales")) return;
-    const res = await fetch("/api/calls");
-    if (res.ok) setCallReviews(await res.json());
-  }
-
-  async function startListening(e: React.FormEvent) {
-    e.preventDefault();
-    await fetch("/api/calls/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ zoomUrl }),
-    });
-    setZoomUrl("");
-    loadCalls();
-  }
-
-  async function load() {
-    const res = await fetch("/api/deals");
-    setDeals(await res.json());
-  }
-
-  useEffect(() => { load(); loadCalls(); }, [session]);
-
-  async function updateStatus(id: string, field: string, value: string) {
-    await fetch(`/api/deals/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ field, value }),
-    });
-    load();
-  }
-
-  async function submitDeal(e: React.FormEvent) {
-    e.preventDefault();
-    await fetch("/api/deals", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    setForm({ customerName: "", discountPct: "10", trialDays: "14", customFeature: "" });
-    setShowForm(false);
-    load();
-  }
-
-  return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 20px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600 }}>DealFlow — active deals</h1>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-        <span style={{ fontSize: 13, color: "#8b8f9a" }}>{session?.user?.email} ({myRoles.join(", ") || "no role"})</span>
-        <button onClick={() => signOut()} style={{ background: "transparent", color: "#8b8f9a", border: "1px solid #23262f", borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer" }}>
-          Sign out
-        </button>
-        {myRoles.includes("sales") && (
-          <button onClick={() => setShowForm(!showForm)} style={{
-            background: "#4ade80", color: "#0b0d12", border: "none", borderRadius: 8,
-            padding: "8px 14px", fontWeight: 600, cursor: "pointer",
-          }}>
-            {showForm ? "Cancel" : "+ New Deal"}
-          </button>
-        )}
-        </div>
-      </div>
-
-      {myRoles.includes("sales") && (
-        <div style={{ background: "#141720", borderRadius: 10, padding: 16, marginBottom: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>🎧 Listen to a call</div>
-          <form onSubmit={startListening} style={{ display: "flex", gap: 8 }}>
-            <input required placeholder="Paste Zoom meeting link" value={zoomUrl}
-              onChange={e => setZoomUrl(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-            <button type="submit" style={{ ...inputStyle, background: "#4ade80", color: "#0b0d12", fontWeight: 600, cursor: "pointer" }}>
-              Start
-            </button>
-          </form>
-
-          {callReviews.length > 0 && (
-            <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
-              {callReviews.map(c => (
-                <div key={c.id} style={{ fontSize: 13, display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: "1px solid #23262f" }}>
-                  <span style={{ color: "#8b8f9a" }}>
-                    {c.status === "processing" && "⏳ Listening / processing..."}
-                    {c.status === "ready" && `✅ ${c.customerName || "Deal"} — ready to review`}
-                    {c.status === "closed_lost" && "❌ Not detected as closed"}
-                    {c.status === "failed" && "⚠️ Something went wrong"}
-                  </span>
-                  {c.status === "ready" && <a href={`/review/${c.id}`} style={{ color: "#4ade80" }}>Review →</a>}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {showForm && (
-        <form onSubmit={submitDeal} style={{ background: "#141720", padding: 16, borderRadius: 10, marginBottom: 24, display: "grid", gap: 10 }}>
-          <input required placeholder="Customer name" value={form.customerName}
-            onChange={e => setForm({ ...form, customerName: e.target.value })} style={inputStyle} />
-          <div style={{ display: "flex", gap: 10 }}>
-            <input type="number" placeholder="Discount %" value={form.discountPct}
-              onChange={e => setForm({ ...form, discountPct: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-            <input type="number" placeholder="Trial days" value={form.trialDays}
-              onChange={e => setForm({ ...form, trialDays: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-          </div>
-          <input placeholder="Custom feature / notes (optional)" value={form.customFeature}
-            onChange={e => setForm({ ...form, customFeature: e.target.value })} style={inputStyle} />
-          <button type="submit" style={{ ...inputStyle, background: "#4ade80", color: "#0b0d12", fontWeight: 600, cursor: "pointer" }}>
-            Submit deal
-          </button>
-        </form>
-      )}
-
-      <div style={{ display: "grid", gap: 12 }}>
-        {deals.map(d => (
-          <div key={d.id} style={{
-            background: "#141720", borderRadius: 10, padding: 16,
-            border: d.finalizedAt ? "1px solid #4ade80" : "1px solid #23262f",
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{d.customerName}</div>
-                <div style={{ fontSize: 13, color: "#8b8f9a" }}>
-                  {d.salesRep} · {d.discountPct}% discount · {d.trialDays}-day trial
-                </div>
-                {d.customFeature && <div style={{ fontSize: 13, color: "#8b8f9a", marginTop: 2 }}>{d.customFeature}</div>}
-              </div>
-              {d.finalizedAt && <a href={`/deals/${d.id}`} style={{ color: "#4ade80", fontSize: 13, alignSelf: "center" }}>View summary →</a>}
-            </div>
-
-            <div style={{ marginTop: 12 }}>
-              <StatusPill label="Eng" value={d.engStatus} />
-              <StatusPill label="Finance" value={d.financeStatus} />
-              <StatusPill label="Legal" value={d.legalStatus} />
-            </div>
-
-            {!d.finalizedAt && (
-              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                {myRoles.includes("eng") && (
-                  <select defaultValue={d.engStatus} onChange={e => updateStatus(d.id, "engStatus", e.target.value)} style={selectStyle}>
-                    <option value="pending">Eng: pending</option>
-                    <option value="scoped">Eng: scoped</option>
-                    <option value="blocked">Eng: blocked</option>
-                  </select>
-                )}
-                {myRoles.includes("finance") && (
-                  <select defaultValue={d.financeStatus} onChange={e => updateStatus(d.id, "financeStatus", e.target.value)} style={selectStyle}>
-                    <option value="pending">Finance: pending</option>
-                    <option value="invoiced">Finance: invoiced</option>
-                    <option value="blocked">Finance: blocked</option>
-                  </select>
-                )}
-                {myRoles.includes("legal") && (
-                  <select defaultValue={d.legalStatus} onChange={e => updateStatus(d.id, "legalStatus", e.target.value)} style={selectStyle}>
-                    <option value="pending">Legal: pending</option>
-                    <option value="approved">Legal: approved</option>
-                    <option value="blocked">Legal: blocked</option>
-                  </select>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </main>
-  );
-}
-
-const inputStyle: React.CSSProperties = {
-  background: "#0b0d12", border: "1px solid #23262f", borderRadius: 6,
-  padding: "8px 10px", color: "#e7e9ee", fontSize: 14,
-};
-
-const selectStyle: React.CSSProperties = {
-  ...inputStyle, fontSize: 12, padding: "5px 8px",
-};
